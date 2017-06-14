@@ -121,14 +121,14 @@ void printVolume(Volume *volume)
  */
 int readRaw(Volume **volume, char *fileName)
 {
-  cudaError_t r = cudaMallocManaged(volume, sizeof(Volume));
+  cudaError_t r = cudaMallocManaged((void **)volume, sizeof(Volume));
   if (r != cudaSuccess)
   {
     fprintf(stderr, "%s: unable to cudaMallocManaged: %d: %s\n", programName, (int) r, cudaGetErrorString(r));
     exit(-1);
   }
   int len = strlen(fileName);
-  char *fileNameExt = (char *) malloc(len + 5);
+  char fileNameExt[len + 5];
   strcpy(fileNameExt, fileName);
   strcpy(fileNameExt + len, ".txt");
   FILE *f = fopen(fileNameExt, "r");
@@ -168,7 +168,6 @@ int readRaw(Volume **volume, char *fileName)
     fprintf(stderr, "%s: error reading from file %s: %s\n", programName, fileNameExt, strerror(ferror(f)));
     return -1;
   }
-  free(fileNameExt);
   return 0;
 }
 
@@ -179,7 +178,7 @@ int readRaw(Volume **volume, char *fileName)
 int writeRaw(Volume *volume, char *fileName)
 {
   int len = strlen(fileName);
-  char *fileNameExt = (char *) malloc(len + 5);
+  char fileNameExt[len + 5];
   strcpy(fileNameExt, fileName);
   strcpy(fileNameExt + len, ".txt");
   FILE *f = fopen(fileNameExt, "w");
@@ -211,7 +210,6 @@ int writeRaw(Volume *volume, char *fileName)
     return -1;
   }
   fclose(f);
-  free(fileNameExt);
   return 0;
 }
 
@@ -238,7 +236,7 @@ int writeTiff(Volume *volume, char *dirName)
   int z, y;
   unsigned char *data = (unsigned char *) volume->data;
   unsigned char *buf = (unsigned char *) _TIFFmalloc(volume->width);
-  for (z = 0; z < volume->depth;z++)
+  for (z = 0; z < volume->depth; z++)
   {
     sprintf(fileName, "%s/%d.tif", dirName, z);
     if ((tif = TIFFOpen(fileName, "w")) == NULL)
@@ -250,14 +248,16 @@ int writeTiff(Volume *volume, char *dirName)
     TIFFSetField(tif, TIFFTAG_IMAGELENGTH, volume->height);
     TIFFSetField(tif, TIFFTAG_SAMPLESPERPIXEL, 1);
     TIFFSetField(tif, TIFFTAG_BITSPERSAMPLE, 8);
+    TIFFSetField(tif, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
     TIFFSetField(tif, TIFFTAG_ROWSPERSTRIP, 1);
     for (y = 0; y < volume->height; y++)
     {
-      memcpy(buf, volume->data, volume->width);
+      memcpy(buf, data, volume->width);
       data += volume->width;
-      if (TIFFWriteScanline(tif, buf, y) != 1)
+      if (TIFFWriteScanline(tif, buf, y, 0) != 1)
       {
         fprintf(stderr, "%s: error writing to %s\n", programName, fileName);
+        TIFFClose(tif);
         _TIFFfree(buf);
         return -1;
       }

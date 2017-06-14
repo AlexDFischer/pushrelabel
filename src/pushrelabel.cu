@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
   cudaDeviceSynchronize();
   writeRaw(volume, argv[2]);
   printf("wrote segmentation to %s\n", argv[2]);
+
   cudaFree(volume->data);
   cudaFree(volume);
   cudaFree(&(graph->voxels));

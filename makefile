@@ -1,4 +1,4 @@
-CC = /usr/local/cuda-7.5/bin/nvcc
+CC = nvcc
 TARGET = pushrelabel
 
 #The Directories, Source, Includes, Objects, Binary and Resources

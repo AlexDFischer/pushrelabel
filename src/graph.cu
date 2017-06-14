@@ -26,7 +26,7 @@ void cudaMallocGraph(Graph **graph, int width, int height, int depth)
 __device__
 int nLinkCapacity(long intensityDiff, unsigned long minIntensity, unsigned long maxIntensity)
 {
-  return (int) round(50 * exp(-1.0 * intensityDiff * intensityDiff / ((maxIntensity - minIntensity) * (maxIntensity - minIntensity))));
+  return (int) round(25 * exp(-1.0 * intensityDiff * intensityDiff / (2.0 * (maxIntensity - minIntensity) * (maxIntensity - minIntensity))));
 }
 
 __device__ __host__
@@ -215,10 +215,10 @@ void setCapacities(Graph *graph, Volume *volume, unsigned long minIntensity, uns
       {
         Vertex *u = getVertex(graph, x, y, z);
         unsigned long intensity = getIntensity(volume, x, y, z);
-        /** 0 means background, 100 means foreground */
-        double score = (intensity - minIntensity) * 100.0 / (maxIntensity - minIntensity);
-        u->capacities[0] = (int) score;
-        u->capacities[1] = 100 - (int) score;
+        /** 0 means definitely background, 1 means definitely foreground */
+        double score = (double) (intensity - minIntensity + 1) / (maxIntensity - minIntensity + 2);
+        u->capacities[0] = (int) (-100.0 * log(1 - score));
+        u->capacities[1] = (int) (-100.0 * log(score));
         if (x < volume->width - 1)
         {
           u->capacities[2] = nLinkCapacity(intensity - getIntensity(volume, x + 1, y, z), minIntensity, maxIntensity);
@@ -515,7 +515,6 @@ void pushRelabel(Graph *graph, Volume *volume)
   int iteration = 0;
   do
   {
-    printf("\rstarting iteration %d", iteration);
     *pushed = 0;
     *relabeled = 0;
     relabel<<<NUM_BLOCKS, THREADS_PER_BLOCK>>>((iteration + 1) % 2, relabeled, graph);
@@ -532,8 +531,8 @@ void pushRelabel(Graph *graph, Volume *volume)
     //printGraph(graph, iteration % 2);
     //printf("  after iteration %d, *pushed = %d and *relabeled = %d\n", iteration, *pushed, *relabeled);
     iteration++;
-  } while ((*pushed || *relabeled));
-  printf("\nfinished pushRelabel\n");
+  } while (*pushed || *relabeled);
+  printf("finished pushRelabel\n");
   cudaFree(pushed);
   cudaFree(relabeled);
 }

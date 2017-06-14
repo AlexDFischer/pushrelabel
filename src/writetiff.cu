@@ -10,6 +10,7 @@ int main(int argc, char *argv[])
   {
     printf("Usage:\n");
     printf("  %s inputRawVolume outputTiffDir\n", programName);
+    exit(0);
   }
   // read our raw file into volume
   Volume *volume;
